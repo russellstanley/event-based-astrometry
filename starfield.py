@@ -13,24 +13,24 @@ else:
     exit()
 
 ONE_SECOND = 1e6
-DEFAULT_FRAME_WIDTH = 1280
-DEFAULT_FRAME_HEIGHT = 720
+DEFAULT_FRAME_WIDTH = 1280 # pixels
+DEFAULT_FRAME_HEIGHT = 720 # pixels
 
 class raw_to_starfield:
     accumulation_time_us = 200000
-    duration_us = 1e7
+    frame_delay_us = 4*ONE_SECOND # Time delay between the start and end frame
     start_ts = 0
+    end_ts = 0
     start_frame = None 
     end_frame= None
-    end_ts = 0
 
     def __init__(self, path):
         self.path = path
     
     # Get start and end event frames over a specified duration and accumulation time.
     def get_frames(self, fps = 0.0):
-        # Events iterator on RAW file
-        mv_iterator = EventsIterator(input_path=self.path, max_duration=self.duration_us)
+        # Events iterator
+        mv_iterator = EventsIterator(input_path=self.path, max_duration=self.frame_delay_us)
         height, width = mv_iterator.get_size()
 
         # Event Frame Generator
@@ -54,38 +54,69 @@ class raw_to_starfield:
 
     #TODO Improve robustness of the velocity estimation
     def get_velocity(self):
-        # Set the inital guess for the velocity
-        translation = np.eye(2,3,dtype=np.float32)
-
         # Determine the time difference in microseconds
         time_dif_us = (self.end_ts - self.start_ts)
 
+        # Convert to grayscale
         start_gray = cv2.cvtColor(self.start_frame, COLOR_BGR2GRAY)
         end_gray = cv2.cvtColor(self.end_frame, COLOR_BGR2GRAY)
-        shape = self.start_frame.shape
+        
+        # Blur images
+        start_blur = cv2.blur(start_gray, (9,9))
+        end_blur = cv2.blur(end_gray, (9,9))
 
-        start_gray_blur = cv2.blur(start_gray, (9,9))
-        end_gray_blur = cv2.blur(end_gray, (9,9))
+        # Set the inital guess for the velocity
+        translation = self.intial_guess(start_blur, end_blur)
+        print(translation)
 
         # Rough transform with filtered images.
-        (cc, translation) = cv2.findTransformECC(start_gray_blur, end_gray_blur, translation, cv2.MOTION_TRANSLATION)
+        (cc, translation) = cv2.findTransformECC(start_blur, end_blur, translation, cv2.MOTION_TRANSLATION)
+        print(translation)
 
         # Fine transform with original images.
         (cc, translation) = cv2.findTransformECC(start_gray, end_gray, translation, cv2.MOTION_TRANSLATION)
+        print(translation)
 
         v_x = translation[0,2]*(1/time_dif_us)
         v_y = translation[1,2]*(1/time_dif_us)
 
         # Debugging
-        # end_aligned = cv2.warpAffine(end_gray, translation, (shape[1],shape[0]))
-        # cv2.imwrite("start_grey.jpg", start_gray)
-        # cv2.imwrite("end_gray.jpg", end_gray)
-        # cv2.imwrite("aligned.jpg", end_aligned)
+        # shape = self.start_frame.shape
+        # end_aligned = cv2.warpAffine(start_blur, translation, (shape[1],shape[0]))
+        # cv2.imwrite("output/start_blur.jpg", start_blur)
+        # cv2.imwrite("output/end_blur.jpg", end_blur)
+        # cv2.imwrite("output/aligned.jpg", end_aligned)
 
         return [v_x,v_y]
 
+    def top_k_pixels(self, k, image):
+        max = np.max(image)
+
+        for i in range(len(image)):
+            for j in range(len(image[i])):
+                if image[i,j] < (max - k*max):
+                    image[i,j] = 0
+                else:
+                    image[i,j] = 1000
+
+        return image
+
+    # Generate an initial guess for the transformation, This is done by finding the distance between the brightest pixels in each image.
+    def intial_guess(self, image1, image2):
+        p1 = np.unravel_index(np.argmax(image1), image1.shape)
+        p2 = np.unravel_index(np.argmax(image2), image2.shape)
+        x = p2[1]-p1[1]
+        y = p2[0]-p1[0]
+
+        # If the initial guess is infeasible. Return standard guess
+        if (abs(x) > 100 or abs(y) > 100):
+            return np.eye(2,3,dtype=np.float32)
+
+        out = np.array([[1.0,0.0,x],[0.0,1.0,y]], dtype=np.float32)
+        return out
+
     # Generate a star-field using event data over a given duration.
-    def generate_star_field(self, duration_us):
+    def generate_star_field(self, duration_us, name):
         self.get_frames()
         velocity = self.get_velocity()
         print(velocity)
@@ -103,9 +134,9 @@ class raw_to_starfield:
                 if (p==1):
                     x_coord = int(x - velocity[0]*t)
                     y_coord = int(y - velocity[1]*t)
-                    image[y_coord, x_coord] = image[y_coord, x_coord] + 1 #TODO Determine best value to increase by
+                    image[y_coord, x_coord] = image[y_coord, x_coord] + 0.5 #TODO Determine best value to increase by
 
-        cv2.imwrite("output.jpg", image)
+        cv2.imwrite(name, image)
 
     # Helper function
     def write_frames(self):
@@ -114,4 +145,4 @@ class raw_to_starfield:
 
 
 player = raw_to_starfield(path)
-player.generate_star_field(30*ONE_SECOND)
+player.generate_star_field(30*ONE_SECOND, "output.jpg")
