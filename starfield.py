@@ -145,4 +145,4 @@ class raw_to_starfield:
 
 
 player = raw_to_starfield(path)
-player.generate_star_field(30*ONE_SECOND, "output.jpg")
+player.generate_star_field(30*ONE_SECOND, path + ".jpg")

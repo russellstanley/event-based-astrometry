@@ -1,0 +1,9 @@
+python3 starfield.py sample_data/sample_1.raw
+python3 starfield.py sample_data/sample_2.raw
+python3 starfield.py sample_data/sample_3.raw
+python3 starfield.py sample_data/sample_4.raw
+python3 starfield.py sample_data/sample_5.raw
+python3 starfield.py sample_data/sample_6.raw
+python3 starfield.py sample_data/sample_7.raw
+python3 starfield.py sample_data/sample_8.raw
+python3 starfield.py sample_data/sample_9.raw
