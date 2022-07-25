@@ -7,23 +7,58 @@ if (len(sys.argv) > 1):
 else:
     exit()
 
+if len(sys.argv) > 2:
+    format = sys.argv[2]
+else:
+    format = ""
+
+# DVX Format
+#t(Unix), x, y, p
+
+
 ONE_SECOND = 1e6
-#TODO Handle various frame dimensions
 DEFAULT_FRAME_WIDTH = 1280 # pixels
 DEFAULT_FRAME_HEIGHT = 720 # pixels
 
 class raw_to_starfield:
     accumulation_time_us = 200000
-    frame_delay_us = 4*ONE_SECOND # Time delay between the start and end frame
+    frame_delay_us = 8*ONE_SECOND # Time delay between the start and end frame
     start_ts = 0
     end_ts = 0
+    frame_height = DEFAULT_FRAME_HEIGHT
+    frame_width = DEFAULT_FRAME_WIDTH
     start_frame = None 
     end_frame= None
 
     def __init__(self, path):
         self.path = path
 
-        self.events = np.genfromtxt(path, delimiter=",", dtype=int)
+        # Read events from file. Skip the first 2 entries as for some files these will be headers.
+        self.events = np.genfromtxt(path, delimiter=",", dtype=int, skip_header=2)
+        self.format()
+
+    def format(self):
+        print("Format: " + format)
+        if format == "DVX":
+            events_copy = np.copy(self.events)
+            offset = self.events[0,0]
+
+            # Convert unix time to microseconds.
+            for i in self.events:
+                i[0] = i[0]-offset
+
+            events_copy[:,0] = self.events[:,1]
+            events_copy[:,1] = self.events[:,2]
+            events_copy[:,2] = self.events[:,3]
+            events_copy[:,3] = self.events[:,0]
+            self.events = events_copy
+            self.frame_height = 480
+            self.frame_width = 640
+
+        elif format != "":
+            print("Error: invalid format")
+            return
+
     
     # Get start and end event frames over a specified duration and accumulation time.
     def get_frames(self):
@@ -46,7 +81,7 @@ class raw_to_starfield:
 
     # Output an event frame for the input events
     def frame_generator(self, events):
-        image = np.zeros((DEFAULT_FRAME_HEIGHT, DEFAULT_FRAME_WIDTH),np.uint8)
+        image = np.zeros((self.frame_height, self.frame_width),np.uint8)
 
         for (x, y, p, t) in events:
             if (p==0):
@@ -127,8 +162,8 @@ class raw_to_starfield:
         velocity = self.get_velocity()
         print(velocity)
 
-        width = DEFAULT_FRAME_WIDTH + int(abs(velocity[0])*(duration_us+10*ONE_SECOND))
-        height = DEFAULT_FRAME_HEIGHT + int(abs(velocity[1])*(duration_us+10*ONE_SECOND))
+        width = self.frame_width + int(abs(velocity[0])*(duration_us+10*ONE_SECOND))
+        height = self.frame_height + int(abs(velocity[1])*(duration_us+10*ONE_SECOND))
         image = np.zeros((height, width))
         print(image.shape)
 

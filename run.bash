@@ -7,3 +7,4 @@ python3 starfield.py sample_data/sample_6.csv
 python3 starfield.py sample_data/sample_7.csv
 python3 starfield.py sample_data/sample_8.csv
 python3 starfield.py sample_data/sample_9.csv
+python3 starfield.py sample_data/sample_9.csv DVX
