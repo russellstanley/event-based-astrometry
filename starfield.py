@@ -108,15 +108,15 @@ class raw_to_starfield:
 
         # Set the inital guess for the velocity
         translation = self.intial_guess(start_blur, end_blur)
-        print(translation)
+        print(translation[:, 2])
 
         # Rough transform with filtered images.
         (cc, translation) = cv2.findTransformECC(start_blur, end_blur, translation, cv2.MOTION_TRANSLATION)
-        print(translation)
+        print(translation[:, 2])
 
         # Fine transform with original images.
         (cc, translation) = cv2.findTransformECC(self.start_frame, self.end_frame, translation, cv2.MOTION_TRANSLATION)
-        print(translation)
+        print(translation[:, 2])
 
         v_x = translation[0,2]*(1/time_dif_us)
         v_y = translation[1,2]*(1/time_dif_us)
@@ -150,7 +150,7 @@ class raw_to_starfield:
         y = p2[0]-p1[0]
 
         # If the initial guess is infeasible. Return standard guess
-        if (abs(x) > 100 or abs(y) > 100):
+        if (abs(x) > self.frame_width or abs(y) > self.frame_width):
             return np.eye(2,3,dtype=np.float32)
 
         out = np.array([[1.0,0.0,x],[0.0,1.0,y]], dtype=np.float32)
