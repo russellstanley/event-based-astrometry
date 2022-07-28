@@ -1,9 +1,4 @@
-from metavision_core.event_io import EventsIterator
-from metavision_sdk_core import PeriodicFrameGenerationAlgorithm
-
 import cv2
-from cv2 import COLOR_BGR2GRAY
-
 import sys
 import numpy as np
 
@@ -12,43 +7,93 @@ if (len(sys.argv) > 1):
 else:
     exit()
 
+if len(sys.argv) > 2:
+    format = sys.argv[2]
+else:
+    format = ""
+
+# DVX Format
+#t(Unix), x, y, p
+
+
 ONE_SECOND = 1e6
 DEFAULT_FRAME_WIDTH = 1280 # pixels
 DEFAULT_FRAME_HEIGHT = 720 # pixels
 
 class raw_to_starfield:
     accumulation_time_us = 200000
-    frame_delay_us = 4*ONE_SECOND # Time delay between the start and end frame
+    frame_delay_us = 8*ONE_SECOND # Time delay between the start and end frame
     start_ts = 0
     end_ts = 0
+    frame_height = DEFAULT_FRAME_HEIGHT
+    frame_width = DEFAULT_FRAME_WIDTH
     start_frame = None 
     end_frame= None
 
     def __init__(self, path):
         self.path = path
+
+        # Read events from file. Skip the first 2 entries as for some files these will be headers.
+        self.events = np.genfromtxt(path, delimiter=",", dtype=int, skip_header=2)
+        self.format()
+
+    def format(self):
+        print("Format: " + format)
+        if format == "DVX":
+            events_copy = np.copy(self.events)
+            offset = self.events[0,0]
+
+            # Convert unix time to microseconds.
+            for i in self.events:
+                i[0] = i[0]-offset
+
+            events_copy[:,0] = self.events[:,1]
+            events_copy[:,1] = self.events[:,2]
+            events_copy[:,2] = self.events[:,3]
+            events_copy[:,3] = self.events[:,0]
+            self.events = events_copy
+            self.frame_height = 480
+            self.frame_width = 640
+
+        elif format != "":
+            print("Error: invalid format")
+            return
+
     
     # Get start and end event frames over a specified duration and accumulation time.
-    def get_frames(self, fps = 0.0):
-        # Events iterator
-        mv_iterator = EventsIterator(input_path=self.path, max_duration=self.frame_delay_us)
-        height, width = mv_iterator.get_size()
+    def get_frames(self):
+        time_offset = self.events[0][2]
+        times_us = self.events[:,3]
 
-        # Event Frame Generator
-        event_frame_gen = PeriodicFrameGenerationAlgorithm(width, height, self.accumulation_time_us, fps)
-        event_frame_gen.set_output_callback(self.on_cd_frame_cb)
+        # Get the start frame.
+        low_bound = time_offset
+        up_bound = time_offset + self.accumulation_time_us
+        mask = ((times_us > low_bound) & (times_us < up_bound))
+        self.start_frame = self.frame_generator(self.events[mask])
+        self.start_ts = int(time_offset)
 
-        # Process events
-        for evs in mv_iterator:
-            event_frame_gen.process_events(evs)
+        # Get the end frame.
+        low_bound = self.frame_delay_us - self.accumulation_time_us + time_offset
+        up_bound = self.frame_delay_us + time_offset
+        mask = ((times_us > low_bound) & (times_us < up_bound))
+        self.end_frame = self.frame_generator(self.events[mask])
+        self.end_ts = int(self.frame_delay_us + time_offset)
 
-    # Callback function to store frames
-    def on_cd_frame_cb(self, ts, cd_frame):
-        if ts <= self.accumulation_time_us:
-            self.start_frame = cd_frame
-            self.start_ts = ts
-        else:
-            self.end_frame = cd_frame
-            self.end_ts = ts
+    # Output an event frame for the input events
+    def frame_generator(self, events):
+        image = np.zeros((self.frame_height, self.frame_width),np.uint8)
+
+        for (x, y, p, t) in events:
+            if (p==0):
+                image[y, x] = 128
+
+            elif(p==1):
+                image[y, x] = 255
+
+            else:
+                return image
+
+        return image
 
     # Find the velocity which the stars are moving at. This is given in as the horizontal and vertical movement per microseconds(us)
 
@@ -56,26 +101,22 @@ class raw_to_starfield:
     def get_velocity(self):
         # Determine the time difference in microseconds
         time_dif_us = (self.end_ts - self.start_ts)
-
-        # Convert to grayscale
-        start_gray = cv2.cvtColor(self.start_frame, COLOR_BGR2GRAY)
-        end_gray = cv2.cvtColor(self.end_frame, COLOR_BGR2GRAY)
         
         # Blur images
-        start_blur = cv2.blur(start_gray, (9,9))
-        end_blur = cv2.blur(end_gray, (9,9))
+        start_blur = cv2.blur(self.start_frame, (9,9))
+        end_blur = cv2.blur(self.end_frame, (9,9))
 
         # Set the inital guess for the velocity
         translation = self.intial_guess(start_blur, end_blur)
-        print(translation)
+        print(translation[:, 2])
 
         # Rough transform with filtered images.
         (cc, translation) = cv2.findTransformECC(start_blur, end_blur, translation, cv2.MOTION_TRANSLATION)
-        print(translation)
+        print(translation[:, 2])
 
         # Fine transform with original images.
-        (cc, translation) = cv2.findTransformECC(start_gray, end_gray, translation, cv2.MOTION_TRANSLATION)
-        print(translation)
+        (cc, translation) = cv2.findTransformECC(self.start_frame, self.end_frame, translation, cv2.MOTION_TRANSLATION)
+        print(translation[:, 2])
 
         v_x = translation[0,2]*(1/time_dif_us)
         v_y = translation[1,2]*(1/time_dif_us)
@@ -109,7 +150,7 @@ class raw_to_starfield:
         y = p2[0]-p1[0]
 
         # If the initial guess is infeasible. Return standard guess
-        if (abs(x) > 100 or abs(y) > 100):
+        if (abs(x) > self.frame_width or abs(y) > self.frame_width):
             return np.eye(2,3,dtype=np.float32)
 
         out = np.array([[1.0,0.0,x],[0.0,1.0,y]], dtype=np.float32)
@@ -121,20 +162,20 @@ class raw_to_starfield:
         velocity = self.get_velocity()
         print(velocity)
 
-        width = DEFAULT_FRAME_WIDTH + int(abs(velocity[0])*(duration_us+10*ONE_SECOND))
-        height = DEFAULT_FRAME_HEIGHT + int(abs(velocity[1])*(duration_us+10*ONE_SECOND))
+        width = self.frame_width + int(abs(velocity[0])*(duration_us+10*ONE_SECOND))
+        height = self.frame_height + int(abs(velocity[1])*(duration_us+10*ONE_SECOND))
         image = np.zeros((height, width))
         print(image.shape)
 
-        mv_iterator = EventsIterator(input_path=self.path, max_duration=duration_us)
-
         # Read each 'ON' event and determine the sky coordinates.
-        for evs in mv_iterator:
-            for (x, y, p, t) in evs:
-                if (p==1):
-                    x_coord = int(x - velocity[0]*t)
-                    y_coord = int(y - velocity[1]*t)
-                    image[y_coord, x_coord] = image[y_coord, x_coord] + 0.5 #TODO Determine best value to increase by
+        for (x, y, p, t) in self.events:
+            if (p==1):
+                x_coord = int(x - velocity[0]*t)
+                y_coord = int(y - velocity[1]*t)
+                image[y_coord, x_coord] = image[y_coord, x_coord] + 0.5 #TODO Determine best value to increase by
+
+            if (t > duration_us):
+                break
 
         cv2.imwrite(name, image)
 
