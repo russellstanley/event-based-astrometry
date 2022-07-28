@@ -15,14 +15,12 @@ else:
 # DVX Format
 #t(Unix), x, y, p
 
-
 ONE_SECOND = 1e6
 DEFAULT_FRAME_WIDTH = 1280 # pixels
 DEFAULT_FRAME_HEIGHT = 720 # pixels
 
-class raw_to_starfield:
+class csv_to_starfield:
     accumulation_time_us = 200000
-    frame_delay_us = 8*ONE_SECOND # Time delay between the start and end frame
     start_ts = 0
     end_ts = 0
     frame_height = DEFAULT_FRAME_HEIGHT
@@ -61,7 +59,7 @@ class raw_to_starfield:
 
     
     # Get start and end event frames over a specified duration and accumulation time.
-    def get_frames(self):
+    def get_frames(self, frame_delay_us):
         time_offset = self.events[0][2]
         times_us = self.events[:,3]
 
@@ -73,11 +71,11 @@ class raw_to_starfield:
         self.start_ts = int(time_offset)
 
         # Get the end frame.
-        low_bound = self.frame_delay_us - self.accumulation_time_us + time_offset
-        up_bound = self.frame_delay_us + time_offset
+        low_bound = frame_delay_us - self.accumulation_time_us + time_offset
+        up_bound = frame_delay_us + time_offset
         mask = ((times_us > low_bound) & (times_us < up_bound))
         self.end_frame = self.frame_generator(self.events[mask])
-        self.end_ts = int(self.frame_delay_us + time_offset)
+        self.end_ts = int(frame_delay_us + time_offset)
 
     # Output an event frame for the input events
     def frame_generator(self, events):
@@ -96,30 +94,31 @@ class raw_to_starfield:
         return image
 
     # Find the velocity which the stars are moving at. This is given in as the horizontal and vertical movement per microseconds(us)
-
-    #TODO Improve robustness of the velocity estimation
     def get_velocity(self):
-        # Determine the time difference in microseconds
-        time_dif_us = (self.end_ts - self.start_ts)
-        
-        # Blur images
-        start_blur = cv2.blur(self.start_frame, (9,9))
-        end_blur = cv2.blur(self.end_frame, (9,9))
+        translation = np.eye(2,3,dtype=np.float32)
 
-        # Set the inital guess for the velocity
-        translation = self.intial_guess(start_blur, end_blur)
+        for delay in range(0,12,2):
+            self.get_frames(delay*ONE_SECOND)
+            time_dif_us = (self.end_ts - self.start_ts)
+            
+            # Blur images
+            start_blur = cv2.blur(self.start_frame, (9,9))
+            end_blur = cv2.blur(self.end_frame, (9,9))
+
+            # Set the inital guess for the velocity
+            guess = self.intial_guess(start_blur, end_blur)
+
+            if (guess[0,2] > 1.0 or guess[1,2] > 1.0):
+                translation = guess
+
         print(translation[:, 2])
+        if translation[0,2] == 0 and translation[1,2] == 0:
+            print("Error: could not find translation")
+            return [0,0]
 
-        # Rough transform with filtered images.
+        # Transform with filtered images.
         (cc, translation) = cv2.findTransformECC(start_blur, end_blur, translation, cv2.MOTION_TRANSLATION)
         print(translation[:, 2])
-
-        # Fine transform with original images.
-        (cc, translation) = cv2.findTransformECC(self.start_frame, self.end_frame, translation, cv2.MOTION_TRANSLATION)
-        print(translation[:, 2])
-
-        v_x = translation[0,2]*(1/time_dif_us)
-        v_y = translation[1,2]*(1/time_dif_us)
 
         # Debugging
         # shape = self.start_frame.shape
@@ -127,6 +126,9 @@ class raw_to_starfield:
         # cv2.imwrite("output/start_blur.jpg", start_blur)
         # cv2.imwrite("output/end_blur.jpg", end_blur)
         # cv2.imwrite("output/aligned.jpg", end_aligned)
+
+        v_x = translation[0,2]*(1/time_dif_us)
+        v_y = translation[1,2]*(1/time_dif_us)
 
         return [v_x,v_y]
 
@@ -150,7 +152,7 @@ class raw_to_starfield:
         y = p2[0]-p1[0]
 
         # If the initial guess is infeasible. Return standard guess
-        if (abs(x) > self.frame_width or abs(y) > self.frame_width):
+        if (abs(x) > 100 or abs(y) > 100):
             return np.eye(2,3,dtype=np.float32)
 
         out = np.array([[1.0,0.0,x],[0.0,1.0,y]], dtype=np.float32)
@@ -158,9 +160,9 @@ class raw_to_starfield:
 
     # Generate a star-field using event data over a given duration.
     def generate_star_field(self, duration_us, name):
-        self.get_frames()
         velocity = self.get_velocity()
-        print(velocity)
+        if velocity[0] == 0 and velocity[0] == 0:
+            return
 
         width = self.frame_width + int(abs(velocity[0])*(duration_us+10*ONE_SECOND))
         height = self.frame_height + int(abs(velocity[1])*(duration_us+10*ONE_SECOND))
@@ -185,5 +187,5 @@ class raw_to_starfield:
         cv2.imwrite("end.jpg", self.end_frame)
 
 
-player = raw_to_starfield(path)
+player = csv_to_starfield(path)
 player.generate_star_field(30*ONE_SECOND, path + ".jpg")
