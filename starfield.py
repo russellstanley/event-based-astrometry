@@ -94,11 +94,11 @@ class csv_to_starfield:
         return image
 
     # Find the velocity which the stars are moving at. This is given in as the horizontal and vertical movement per microseconds(us)
-    def get_velocity(self):
+    def get_velocity(self, duration_us):
         translation = np.eye(2,3,dtype=np.float32)
 
-        for delay in range(0,12,2):
-            self.get_frames(delay*ONE_SECOND)
+        for delay in range(0, int(duration_us/ONE_SECOND)*2):
+            self.get_frames(delay*ONE_SECOND*0.25)
             time_dif_us = (self.end_ts - self.start_ts)
             
             # Blur images
@@ -108,7 +108,7 @@ class csv_to_starfield:
             # Set the inital guess for the velocity
             guess = self.intial_guess(start_blur, end_blur)
 
-            if (guess[0,2] > 1.0 or guess[1,2] > 1.0):
+            if (abs(guess[0,2]) >= 1.0 or abs(guess[1,2]) >= 1.0):
                 translation = guess
 
         print(translation[:, 2])
@@ -160,14 +160,13 @@ class csv_to_starfield:
 
     # Generate a star-field using event data over a given duration.
     def generate_star_field(self, duration_us, name):
-        velocity = self.get_velocity()
+        velocity = self.get_velocity(duration_us)
         if velocity[0] == 0 and velocity[0] == 0:
             return
 
         width = self.frame_width + int(abs(velocity[0])*(duration_us+10*ONE_SECOND))
         height = self.frame_height + int(abs(velocity[1])*(duration_us+10*ONE_SECOND))
         image = np.zeros((height, width))
-        print(image.shape)
 
         # Read each 'ON' event and determine the sky coordinates.
         for (x, y, p, t) in self.events:
