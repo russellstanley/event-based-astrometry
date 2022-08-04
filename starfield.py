@@ -99,7 +99,6 @@ class csv_to_starfield:
 
         for delay in range(0, int(duration_us/ONE_SECOND)*2):
             self.get_frames(delay*ONE_SECOND*0.25)
-            time_dif_us = (self.end_ts - self.start_ts)
             
             # Blur images
             start_blur = cv2.blur(self.start_frame, (9,9))
@@ -110,6 +109,7 @@ class csv_to_starfield:
 
             if (abs(guess[0,2]) >= 1.0 or abs(guess[1,2]) >= 1.0):
                 translation = guess
+                time_dif_us = (self.end_ts - self.start_ts)
 
         print(translation[:, 2])
         if translation[0,2] == 0 and translation[1,2] == 0:
@@ -161,7 +161,7 @@ class csv_to_starfield:
     # Generate a star-field using event data over a given duration.
     def generate_star_field(self, duration_us, name):
         velocity = self.get_velocity(duration_us)
-        if velocity[0] == 0 and velocity[0] == 0:
+        if velocity[0] == 0 and velocity[1] == 0:
             return
 
         width = self.frame_width + int(abs(velocity[0])*(duration_us+10*ONE_SECOND))
