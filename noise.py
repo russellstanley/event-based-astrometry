@@ -12,6 +12,9 @@ else:
     format = ""
 
 class find_hot_pixels:
+    frame_height = 1280
+    frame_width = 720
+
     def __init__(self, path):
         self.path = path
 
@@ -40,10 +43,11 @@ class find_hot_pixels:
             print("Error: invalid format")
             return
 
+    # get_hot_pixels will generate a file of hot pixels. The number hot pixels written is dependant on the percentage threshold.
     def get_hot_pixels(self, threshold):
         dict = {}
 
-        # Read each event
+        # Read each event and count the events at each pixel
         for (x, y, p, t) in self.events:
             key = str(x) + "," + str(y)
 
@@ -53,10 +57,19 @@ class find_hot_pixels:
                 value = dict.get(key) + 1
                 dict.update({key:value})
 
-        file = open("hot_pixels.txt", "w")
+        file = open("hot_pixels.csv", "w")
+        pixels = self.frame_height*self.frame_width
+        count = 0
+        limit = pixels * (threshold/100)
+        print(limit)
+
         for i in sorted(dict, key=dict.get, reverse=True):
             file.write("%s,%s\n" % (i, dict[i]))
+            count = count + 1
+
+            if count > limit:
+                break
 
 
 player = find_hot_pixels(path)
-player.get_hot_pixels(0)
+player.get_hot_pixels(10)
