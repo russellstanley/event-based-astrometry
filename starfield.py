@@ -107,10 +107,8 @@ class csv_to_starfield:
         for (x, y, p, t) in events:
             if (p==0):
                 image[y, x] = 128
-
             elif(p==1):
                 image[y, x] = 255
-
             else:
                 return image
 
@@ -196,7 +194,7 @@ class csv_to_starfield:
             if (p==1 and self.hot_pixels.get(self.generate_key(x,y)) == None):
                 x_coord = int(x - velocity[0]*t)
                 y_coord = int(y - velocity[1]*t)
-                image[y_coord, x_coord] = image[y_coord, x_coord] + 2 #TODO Determine best value to increase by
+                image[y_coord, x_coord] = image[y_coord, x_coord] + 1 #TODO Determine best value to increase by
 
             if (t > duration_us):
                 break
