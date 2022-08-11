@@ -3,7 +3,7 @@ import sys
 import numpy as np
 
 if (len(sys.argv) > 1):
-    path = sys.argv[1]
+    file_path = sys.argv[1]
 else:
     exit()
 
@@ -11,6 +11,11 @@ if len(sys.argv) > 2:
     format = sys.argv[2]
 else:
     format = ""
+
+if len(sys.argv) > 3:
+    noise_path = sys.argv[3]
+else:
+    noise_path = ""
 
 # DVX Format
 #t(Unix), x, y, p
@@ -27,13 +32,31 @@ class csv_to_starfield:
     frame_width = DEFAULT_FRAME_WIDTH
     start_frame = None 
     end_frame= None
+    hot_pixels = {}
 
-    def __init__(self, path):
+    def __init__(self, path, hot_pixels_path):
         self.path = path
 
         # Read events from file. Skip the first 2 entries as for some files these will be headers.
         self.events = np.genfromtxt(path, delimiter=",", dtype=int, skip_header=2)
         self.format()
+
+        # Generate noise map if a path is given
+        if hot_pixels_path != "":
+            self.load_noise(hot_pixels_path)
+
+    # load_noise will generate a map of hot pixel coordinates and their respective scale. 
+    def load_noise(self, path):
+        pixels = np.genfromtxt(path, delimiter=",", dtype=int)
+        self.hot_pixels = {}
+
+        for (x, y, scale) in pixels:
+            key = self.generate_key(x,y)
+            self.hot_pixels.update({key:scale})
+
+    # generate_key generates a standard key for the hot pixel map.
+    def generate_key(self, x, y):
+        return str(x) + "," + str(y)
 
     def format(self):
         print("Format: " + format)
@@ -170,10 +193,10 @@ class csv_to_starfield:
 
         # Read each 'ON' event and determine the sky coordinates.
         for (x, y, p, t) in self.events:
-            if (p==1):
+            if (p==1 and self.hot_pixels.get(self.generate_key(x,y)) == None):
                 x_coord = int(x - velocity[0]*t)
                 y_coord = int(y - velocity[1]*t)
-                image[y_coord, x_coord] = image[y_coord, x_coord] + 0.5 #TODO Determine best value to increase by
+                image[y_coord, x_coord] = image[y_coord, x_coord] + 2 #TODO Determine best value to increase by
 
             if (t > duration_us):
                 break
@@ -186,5 +209,5 @@ class csv_to_starfield:
         cv2.imwrite("end.jpg", self.end_frame)
 
 
-player = csv_to_starfield(path)
-player.generate_star_field(30*ONE_SECOND, path + ".jpg")
+player = csv_to_starfield(file_path, noise_path)
+player.generate_star_field(30*ONE_SECOND, file_path + ".jpg")
