@@ -1,6 +1,7 @@
 import cv2
 import sys
 import numpy as np
+import time
 
 if (len(sys.argv) > 1):
     file_path = sys.argv[1]
@@ -35,19 +36,22 @@ class csv_to_starfield:
     hot_pixels = {}
 
     def __init__(self, path, hot_pixels_path):
+        start_time = time.time()
         self.path = path
 
         # Read events from file. Skip the first 2 entries as for some files these will be headers.
-        self.events = np.genfromtxt(path, delimiter=",", dtype=int, skip_header=2)
+        self.events = np.loadtxt(path, delimiter=",", dtype=int, skiprows=2)
         self.format()
 
         # Generate noise map if a path is given
         if hot_pixels_path != "":
             self.load_noise(hot_pixels_path)
 
+        print("load time: %s sec" % (time.time() - start_time))
+
     # load_noise will generate a map of hot pixel coordinates and their respective scale. 
     def load_noise(self, path):
-        pixels = np.genfromtxt(path, delimiter=",", dtype=int)
+        pixels = np.loadtxt(path, delimiter=",", dtype=int)
         self.hot_pixels = {}
 
         for (x, y, scale) in pixels:
@@ -118,8 +122,8 @@ class csv_to_starfield:
     def get_velocity(self, duration_us):
         translation = np.eye(2,3,dtype=np.float32)
 
-        for delay in range(0, int(duration_us/ONE_SECOND)*2):
-            self.get_frames(delay*ONE_SECOND*0.25)
+        for delay in range(0, int(duration_us/ONE_SECOND)*5):
+            self.get_frames(delay*ONE_SECOND*0.1)
             
             # Blur images
             start_blur = cv2.blur(self.start_frame, (9,9))
@@ -179,6 +183,16 @@ class csv_to_starfield:
         out = np.array([[1.0,0.0,x],[0.0,1.0,y]], dtype=np.float32)
         return out
 
+    def normalize(self, image):
+        max_pixel = np.max(image)
+        min_pixel = np.min(image)
+
+        for i in range(len(image)):
+            for j in range(len(image[i])):
+                image[i,j] = ((image[i,j] - min_pixel)/(max_pixel - min_pixel))*255
+
+        return image
+
     # Generate a star-field using event data over a given duration.
     def generate_star_field(self, duration_us, name):
         velocity = self.get_velocity(duration_us)
@@ -199,7 +213,7 @@ class csv_to_starfield:
             if (t > duration_us):
                 break
 
-        cv2.imwrite(name, image)
+        cv2.imwrite(name, self.normalize(image))
 
     # Helper function
     def write_frames(self):
@@ -207,5 +221,9 @@ class csv_to_starfield:
         cv2.imwrite("end.jpg", self.end_frame)
 
 
+start_time = time.time()
+
 player = csv_to_starfield(file_path, noise_path)
 player.generate_star_field(30*ONE_SECOND, file_path + ".jpg")
+
+print("total: %s sec" % (time.time() - start_time))

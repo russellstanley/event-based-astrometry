@@ -72,4 +72,4 @@ class find_hot_pixels:
 
 
 player = find_hot_pixels(path)
-player.get_hot_pixels(50)
+player.get_hot_pixels(75)
