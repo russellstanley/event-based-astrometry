@@ -213,7 +213,7 @@ class csv_to_starfield:
             if (t > duration_us):
                 break
 
-        cv2.imwrite(name, self.normalize(image))
+        cv2.imwrite(name, image)
 
     # Helper function
     def write_frames(self):

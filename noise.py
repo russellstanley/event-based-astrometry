@@ -60,8 +60,8 @@ class find_hot_pixels:
         file = open("hot_pixels.csv", "w")
         pixels = self.frame_height*self.frame_width
         count = 0
-        limit = pixels * (threshold/100)
-        print(limit)
+        limit = int(len(dict) * (threshold/100))
+        print("Writing: %s/%s(%s%%) of hot pixels identified" % (limit, len(dict), threshold))
 
         for i in sorted(dict, key=dict.get, reverse=True):
             file.write("%s,%s\n" % (i, dict[i]))
@@ -72,4 +72,4 @@ class find_hot_pixels:
 
 
 player = find_hot_pixels(path)
-player.get_hot_pixels(75)
+player.get_hot_pixels(95)

@@ -12,3 +12,9 @@ python3 starfield.py daytime/daytime_10.csv DVX hot_pixels.csv
 python3 starfield.py daytime/daytime_11.csv DVX hot_pixels.csv
 python3 starfield.py daytime/daytime_12.csv DVX hot_pixels.csv
 python3 starfield.py daytime/daytime_13.csv DVX hot_pixels.csv
+
+python3 starfield.py sample_data/stars_1.csv DVX hot_pixels.csv
+python3 starfield.py sample_data/stars_2.csv DVX hot_pixels.csv
+python3 starfield.py sample_data/stars_3.csv DVX hot_pixels.csv
+python3 starfield.py sample_data/stars_4.csv DVX hot_pixels.csv
+python3 starfield.py sample_data/stars_5.csv DVX hot_pixels.csv
