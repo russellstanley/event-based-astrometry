@@ -64,7 +64,11 @@ class csv_to_starfield:
 
     def format(self):
         print("Format: " + format)
-        if format == "DVX":
+
+        if format == "PRO":
+            return
+
+        elif format == "DVX":
             events_copy = np.copy(self.events)
             offset = self.events[0,0]
 
@@ -80,7 +84,7 @@ class csv_to_starfield:
             self.frame_height = 480
             self.frame_width = 640
 
-        elif format != "":
+        else:
             print("Error: invalid format")
             return
 

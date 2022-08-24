@@ -23,7 +23,12 @@ class find_hot_pixels:
         self.format()
 
     def format(self):
-        if format == "DVX":
+        print("Format: " + format)
+
+        if format == "PRO":
+            return
+
+        elif format == "DVX":
             events_copy = np.copy(self.events)
             offset = self.events[0,0]
 
@@ -39,7 +44,7 @@ class find_hot_pixels:
             self.frame_height = 480
             self.frame_width = 640
 
-        elif format != "":
+        else:
             print("Error: invalid format")
             return
 
@@ -72,4 +77,4 @@ class find_hot_pixels:
 
 
 player = find_hot_pixels(path)
-player.get_hot_pixels(95)
+player.get_hot_pixels(100)
