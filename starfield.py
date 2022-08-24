@@ -2,6 +2,7 @@ import cv2
 import sys
 import numpy as np
 import time
+import dv
 
 if (len(sys.argv) > 1):
     file_path = sys.argv[1]
@@ -40,7 +41,6 @@ class csv_to_starfield:
         self.path = path
 
         # Read events from file. Skip the first 2 entries as for some files these will be headers.
-        self.events = np.loadtxt(path, delimiter=",", dtype=int, skiprows=2)
         self.format()
 
         # Generate noise map if a path is given
@@ -64,23 +64,28 @@ class csv_to_starfield:
 
     def format(self):
         print("Format: " + format)
-        if format == "DVX":
-            events_copy = np.copy(self.events)
-            offset = self.events[0,0]
+
+        if format == "PRO":
+            self.events = np.loadtxt(self.path, delimiter=",", dtype=int, skiprows=2)
+            print(self.events)
+            return
+
+        elif format == "DVX":
+            f = dv.AedatFile(self.path)
+            events = np.hstack([[packet['x'], packet['y'], packet['polarity'], packet['timestamp']] for packet in f['events'].numpy()])
+
+            self.events = np.transpose(events.astype(int))
+            offset = events[3][0]
 
             # Convert unix time to microseconds.
             for i in self.events:
-                i[0] = i[0]-offset
+                i[3] = i[3]-offset
 
-            events_copy[:,0] = self.events[:,1]
-            events_copy[:,1] = self.events[:,2]
-            events_copy[:,2] = self.events[:,3]
-            events_copy[:,3] = self.events[:,0]
-            self.events = events_copy
             self.frame_height = 480
             self.frame_width = 640
+            return
 
-        elif format != "":
+        else:
             print("Error: invalid format")
             return
 
