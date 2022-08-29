@@ -1,4 +1,3 @@
-from tkinter import ON
 import cv2
 import numpy as np
 import reader
@@ -72,14 +71,7 @@ class csv_to_starfield(reader.read_events):
         start = int(halfway-(increment*5))
         end = int(halfway+((increment*5)))
 
-        print(start)
-        print(end)
-
         for delay in range(start, end, increment):
-
-
-            print(delay)
-
             self.get_frames(delay)
             
             # Blur images
