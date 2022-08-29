@@ -1,23 +1,8 @@
+from tkinter import ON
 import cv2
-import sys
 import numpy as np
+import reader
 import time
-import dv
-
-if (len(sys.argv) > 1):
-    file_path = sys.argv[1]
-else:
-    exit()
-
-if len(sys.argv) > 2:
-    format = sys.argv[2]
-else:
-    format = ""
-
-if len(sys.argv) > 3:
-    noise_path = sys.argv[3]
-else:
-    noise_path = ""
 
 # DVX Format
 #t(Unix), x, y, p
@@ -26,7 +11,7 @@ ONE_SECOND = 1e6
 DEFAULT_FRAME_WIDTH = 1280 # pixels
 DEFAULT_FRAME_HEIGHT = 720 # pixels
 
-class csv_to_starfield:
+class csv_to_starfield(reader.read_events):
     accumulation_time_us = 200000
     start_ts = 0
     end_ts = 0
@@ -36,19 +21,6 @@ class csv_to_starfield:
     end_frame= None
     hot_pixels = {}
 
-    def __init__(self, path, hot_pixels_path):
-        start_time = time.time()
-        self.path = path
-
-        # Read events from file. Skip the first 2 entries as for some files these will be headers.
-        self.format()
-
-        # Generate noise map if a path is given
-        if hot_pixels_path != "":
-            self.load_noise(hot_pixels_path)
-
-        print("load time: %s sec" % (time.time() - start_time))
-
     # load_noise will generate a map of hot pixel coordinates and their respective scale. 
     def load_noise(self, path):
         pixels = np.loadtxt(path, delimiter=",", dtype=int)
@@ -57,38 +29,6 @@ class csv_to_starfield:
         for (x, y, scale) in pixels:
             key = self.generate_key(x,y)
             self.hot_pixels.update({key:scale})
-
-    # generate_key generates a standard key for the hot pixel map.
-    def generate_key(self, x, y):
-        return str(x) + "," + str(y)
-
-    def format(self):
-        print("Format: " + format)
-
-        if format == "PRO":
-            self.events = np.loadtxt(self.path, delimiter=",", dtype=int, skiprows=2)
-            print(self.events)
-            return
-
-        elif format == "DVX":
-            f = dv.AedatFile(self.path)
-            events = np.hstack([[packet['x'], packet['y'], packet['polarity'], packet['timestamp']] for packet in f['events'].numpy()])
-
-            self.events = np.transpose(events.astype(int))
-            offset = events[3][0]
-
-            # Convert unix time to microseconds.
-            for i in self.events:
-                i[3] = i[3]-offset
-
-            self.frame_height = 480
-            self.frame_width = 640
-            return
-
-        else:
-            print("Error: invalid format")
-            return
-
     
     # Get start and end event frames over a specified duration and accumulation time.
     def get_frames(self, frame_delay_us):
@@ -127,8 +67,20 @@ class csv_to_starfield:
     def get_velocity(self, duration_us):
         translation = np.eye(2,3,dtype=np.float32)
 
-        for delay in range(0, int(duration_us/ONE_SECOND)*5):
-            self.get_frames(delay*ONE_SECOND*0.1)
+        increment = int(duration_us/30)
+        halfway = duration_us*0.5
+        start = int(halfway-(increment*5))
+        end = int(halfway+((increment*5)))
+
+        print(start)
+        print(end)
+
+        for delay in range(start, end, increment):
+
+
+            print(delay)
+
+            self.get_frames(delay)
             
             # Blur images
             start_blur = cv2.blur(self.start_frame, (9,9))
@@ -199,15 +151,23 @@ class csv_to_starfield:
         return image
 
     # Generate a star-field using event data over a given duration.
-    def generate_star_field(self, duration_us, name):
+    def generate_star_field(self, duration_us, name, hot_pixels_path=""):
+
+        # Generate noise map if a path is given
+        if hot_pixels_path != "":
+            self.load_noise(hot_pixels_path)
+
+        start_time = time.time()
         velocity = self.get_velocity(duration_us)
         if velocity[0] == 0 and velocity[1] == 0:
             return
+        print("get_velocity: %s sec" % (time.time() - start_time))
 
         width = self.frame_width + int(abs(velocity[0])*(duration_us+10*ONE_SECOND))
         height = self.frame_height + int(abs(velocity[1])*(duration_us+10*ONE_SECOND))
         image = np.zeros((height, width))
 
+        start_time = time.time()
         # Read each 'ON' event and determine the sky coordinates.
         for (x, y, p, t) in self.events:
             if (p==1 and self.hot_pixels.get(self.generate_key(x,y)) == None):
@@ -217,18 +177,12 @@ class csv_to_starfield:
 
             if (t > duration_us):
                 break
+        print("image_generation: %s sec" % (time.time() - start_time))
 
         cv2.imwrite(name, image)
+
 
     # Helper function
     def write_frames(self):
         cv2.imwrite("start.jpg", self.start_frame)
         cv2.imwrite("end.jpg", self.end_frame)
-
-
-start_time = time.time()
-
-player = csv_to_starfield(file_path, noise_path)
-player.generate_star_field(30*ONE_SECOND, file_path + ".jpg")
-
-print("total: %s sec" % (time.time() - start_time))
