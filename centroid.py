@@ -1,4 +1,3 @@
-import re
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,7 +18,7 @@ class centroid:
 
     def get_peaks(self):
         # Load data.
-        self.data = cv2.imread("sample_data/sample_3.csv.jpg", cv2.IMREAD_GRAYSCALE)
+        self.data = cv2.imread("sample_data/sample_7.csv.jpg", cv2.IMREAD_GRAYSCALE)
         threshold = detect_threshold(self.data, nsigma=12.0)
 
         # Find centroid in starfield.
@@ -33,10 +32,10 @@ class centroid:
         norm = simple_norm(self.data, 'sqrt', percent=99.9)
 
         img = plt.imshow(self.data, cmap='Greys_r', origin='lower', norm=norm, interpolation='nearest')
-        apertures.plot(color='#0547f9', lw=1.5)
+        apertures.plot(color='#0547f9', lw=1)
         plt.xlim(0, self.data.shape[1] - 1)
         plt.ylim(0, self.data.shape[0] - 1)
-        plt.show()
+        plt.savefig("output.jpg", dpi=500)
 
     def get_body_vectors(self):
         cx, cy = self.data.shape
@@ -62,4 +61,5 @@ class centroid:
 
 player = centroid()
 player.get_peaks()
+player.draw()
 player.get_body_vectors()
