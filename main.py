@@ -21,7 +21,7 @@ if (len(sys.argv) > 2):
 
 start_time = time.time()
 
-player = starfield.csv_to_starfield(file_path, "DVX")
-player.generate_star_field(30*starfield.ONE_SECOND, file_path + ".jpg", hot_pixels_path=noise.FILE_PATH)
+player = starfield.csv_to_starfield(file_path, "DVX_CSV")
+data = player.generate_star_field(30*starfield.ONE_SECOND, file_path + ".jpg", hot_pixels_path=noise.FILE_PATH)
 
 print("total: %s sec" % (time.time() - start_time))

@@ -1,34 +1,65 @@
+import re
 import cv2
-
-from astropy.stats import sigma_clipped_stats
-from photutils.detection import find_peaks
-from photutils.centroids import *
-from photutils.datasets import make_100gaussians_image
-
 import numpy as np
 import matplotlib.pyplot as plt
+import math
+
 from astropy.visualization import simple_norm
-from astropy.visualization.mpl_normalize import ImageNormalize
+
+from photutils.detection import find_peaks
+from photutils.segmentation import detect_threshold
+from photutils.centroids import centroid_com
 from photutils.aperture import CircularAperture
 
-data = cv2.imread("sample_data/sample_1.jpg", cv2.IMREAD_GRAYSCALE)
-mean, median, std = sigma_clipped_stats(data, sigma=3.0)
-cv2.imwrite("gaussian.jpg", data)
+FOCAL_LENGTH = 400 # millimeters
 
-threshold = median + (10. * std)
+class centroid:
+    data = None
+    positions = None
 
-tbl = find_peaks(data, threshold, box_size=11)
+    def get_peaks(self):
+        # Load data.
+        self.data = cv2.imread("sample_data/sample_3.csv.jpg", cv2.IMREAD_GRAYSCALE)
+        threshold = detect_threshold(self.data, nsigma=12.0)
 
-tbl['peak_value'].info.format = '%.8g'  # for consistent table output
+        # Find centroid in starfield.
+        tbl = find_peaks(self.data, threshold, box_size=11, npeaks=50, centroid_func=centroid_com)
 
-print(tbl[:10])  # print only the first 10 peaks
+        self.positions = np.transpose((tbl['x_centroid'], tbl['y_centroid']))
 
-positions = np.transpose((tbl['x_peak'], tbl['y_peak']))
-apertures = CircularAperture(positions, r=5.)
-norm = simple_norm(data, 'sqrt', percent=99.9)
 
-plt.imshow(data, cmap='Greys_r', origin='lower', norm=norm, interpolation='nearest')
-apertures.plot(color='#0547f9', lw=1.5)
-plt.xlim(0, data.shape[1] - 1)
-plt.ylim(0, data.shape[0] - 1)
-plt.show()
+    def draw(self):
+        apertures = CircularAperture(self.positions, r=5.)
+        norm = simple_norm(self.data, 'sqrt', percent=99.9)
+
+        img = plt.imshow(self.data, cmap='Greys_r', origin='lower', norm=norm, interpolation='nearest')
+        apertures.plot(color='#0547f9', lw=1.5)
+        plt.xlim(0, self.data.shape[1] - 1)
+        plt.ylim(0, self.data.shape[0] - 1)
+        plt.show()
+
+    def get_body_vectors(self):
+        cx, cy = self.data.shape
+        cx = int(cx/2)
+        cy = int(cy/2)
+        result = np.ones((0,3))
+
+        for (i,j) in self.positions:
+            x = i - cx
+            y = j - cy
+
+            azimuth = math.pi - math.atan2(y,x)
+            elevation = math.pi/2 - math.atan((math.sqrt(x**2+y**2))/FOCAL_LENGTH)
+
+            vx = math.cos(azimuth)*math.cos(elevation)
+            vy = math.sin(azimuth)*math.cos(elevation)
+            vz = math.sin(elevation)
+
+            result = np.vstack((result, np.array([vx, vy, vz])))
+
+        print(result)
+        return result
+
+player = centroid()
+player.get_peaks()
+player.get_body_vectors()
