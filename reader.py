@@ -1,13 +1,15 @@
 import time
 import numpy as np
-import dv
+#import dv
+from metavision_core.event_io import EventsIterator
+from pandas import array
 
 class read_events():
     def __init__(self, path, format):
         start_time = time.time()
         self.path = path
 
-        # Read events from file. Skip the first 2 entries as for some files these will be headers.
+        # Read events from file.
         self.format(format)
 
         print("load time: %s sec" % (time.time() - start_time))
@@ -47,6 +49,8 @@ class read_events():
             self.events = np.transpose(events.astype(int))
             offset = events[3][0]
 
+            print(self.events)
+
             # Convert unix time to microseconds.
             for i in self.events:
                 i[3] = i[3]-offset
@@ -56,7 +60,19 @@ class read_events():
             return
 
         elif format == "PRO":
-            print("Error: invalid format")
+            iterator = EventsIterator(input_path=self.path)
+
+
+            events = np.empty((0,4))
+
+            for evs in iterator:
+                for (x,y,p,t) in evs:
+                    events = np.vstack((events, np.array([int(x),int(y),int(p),int(t)])))
+
+
+            self.events = events
+            print(self.events)
+
             return
 
         else:
