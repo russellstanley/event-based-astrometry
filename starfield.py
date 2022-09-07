@@ -66,13 +66,8 @@ class csv_to_starfield(reader.read_events):
     def get_velocity(self, duration_us):
         translation = np.eye(2,3,dtype=np.float32)
 
-        increment = int(duration_us/30)
-        halfway = duration_us*0.5
-        start = int(halfway-(increment*5))
-        end = int(halfway+((increment*5)))
-
-        for delay in range(start, end, increment):
-            self.get_frames(delay)
+        for delay in range(0, int(duration_us/ONE_SECOND)*5):
+            self.get_frames(delay*ONE_SECOND*0.1)
             
             # Blur images
             start_blur = cv2.blur(self.start_frame, (9,9))
@@ -171,8 +166,8 @@ class csv_to_starfield(reader.read_events):
                 break
         print("image_generation: %s sec" % (time.time() - start_time))
 
-        cv2.imwrite(name, image)
-
+        cv2.imwrite(name, self.normalize(image))
+        return self.normalize(image)
 
     # Helper function
     def write_frames(self):
