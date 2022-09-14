@@ -1,13 +1,14 @@
 import time
 import numpy as np
-import dv
+#import dv
+from metavision_core.event_io import RawReader
 
 class read_events():
     def __init__(self, path, format):
         start_time = time.time()
         self.path = path
 
-        # Read events from file. Skip the first 2 entries as for some files these will be headers.
+        # Read events from file.
         self.format(format)
 
         print("load time: %s sec" % (time.time() - start_time))
@@ -47,6 +48,8 @@ class read_events():
             self.events = np.transpose(events.astype(int))
             offset = events[3][0]
 
+            print(self.events)
+
             # Convert unix time to microseconds.
             for i in self.events:
                 i[3] = i[3]-offset
@@ -56,7 +59,17 @@ class read_events():
             return
 
         elif format == "PRO":
-            print("Error: invalid format")
+            record_raw = RawReader(self.path)
+            self.events = np.empty((0,4), dtype=int)
+
+            while not record_raw.is_done():
+                # load the next 50 ms worth of events
+                packet = record_raw.load_delta_t(50000)
+
+                events = np.array([packet['x'], packet['y'], packet['p'], packet['t']])
+                events = np.transpose(events)
+
+                self.events = np.vstack((self.events, events))
             return
 
         else:
