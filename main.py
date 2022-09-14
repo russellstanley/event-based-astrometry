@@ -16,12 +16,12 @@ else:
 if (len(sys.argv) > 2):
     blank_path = sys.argv[2]
 
-    player = noise.find_hot_pixels(blank_path, "DVX_CSV")
-    player.write_hot_pixels(100)
+    player = noise.find_hot_pixels(blank_path, "PRO")
+    player.write_hot_pixels(95)
 
 start_time = time.time()
 
-player = starfield.csv_to_starfield(file_path, "DVX_CSV")
+player = starfield.csv_to_starfield(file_path, "PRO_CSV")
 data = player.generate_star_field(30*starfield.ONE_SECOND, file_path + ".jpg", hot_pixels_path=noise.FILE_PATH)
 
 print("total: %s sec" % (time.time() - start_time))

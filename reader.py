@@ -1,8 +1,7 @@
 import time
 import numpy as np
 #import dv
-from metavision_core.event_io import EventsIterator
-from pandas import array
+from metavision_core.event_io import RawReader
 
 class read_events():
     def __init__(self, path, format):
@@ -60,19 +59,17 @@ class read_events():
             return
 
         elif format == "PRO":
-            iterator = EventsIterator(input_path=self.path)
+            record_raw = RawReader(self.path)
+            self.events = np.empty((0,4), dtype=int)
 
+            while not record_raw.is_done():
+                # load the next 50 ms worth of events
+                packet = record_raw.load_delta_t(50000)
 
-            events = np.empty((0,4))
+                events = np.array([packet['x'], packet['y'], packet['p'], packet['t']])
+                events = np.transpose(events)
 
-            for evs in iterator:
-                for (x,y,p,t) in evs:
-                    events = np.vstack((events, np.array([int(x),int(y),int(p),int(t)])))
-
-
-            self.events = events
-            print(self.events)
-
+                self.events = np.vstack((self.events, events))
             return
 
         else:
