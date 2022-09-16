@@ -48,7 +48,7 @@ class centroid:
 
         plt.xlim(0, self.data.shape[1] - 1)
         plt.ylim(0, self.data.shape[0] - 1)
-        plt.savefig(file_path[0:len(file_path)-8] + ".jpg", dpi=500, bbox_inches="tight", pad_inches=0.0)
+        plt.savefig(file_path[0:len(file_path)-4] + "c.jpg", dpi=500, bbox_inches="tight", pad_inches=0.0)
 
     def get_body_vectors(self):
         cx, cy = self.data.shape
