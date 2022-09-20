@@ -59,18 +59,7 @@ class read_events():
             return
 
         elif format == "PRO":
-            record_raw = RawReader(self.path)
-            self.events = np.empty((0,4), dtype=int)
-
-            while not record_raw.is_done():
-                # load the next 50 ms worth of events
-                packet = record_raw.load_delta_t(50000)
-
-                events = np.array([packet['x'], packet['y'], packet['p'], packet['t']])
-                events = np.transpose(events)
-
-                self.events = np.vstack((self.events, events))
-            return
+            pass
 
         else:
             print("Error: invalid format")
