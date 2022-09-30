@@ -2,6 +2,7 @@ import sys
 import time
 import starfield
 import noise
+import centroid
 import glob
 
 # DVX Format
@@ -29,7 +30,14 @@ if (len(sys.argv) > 2):
 start_time = time.time()
 
 for file_path in files:
+    image_file = file_path[:len(file_path) - 4] + ".jpg"
+
     player = starfield.csv_to_starfield(file_path)
-    data = player.generate_star_field(30*starfield.ONE_SECOND, file_path[:len(file_path) - 4] + ".jpg", hot_pixels_path=noise.FILE_PATH)
+    data = player.generate_star_field(30*starfield.ONE_SECOND, image_file, hot_pixels_path=noise.FILE_PATH)
+
+    centroiding = centroid.centroid(image_file)
+    centroiding.get_peaks()
+    centroiding.draw(circles=False)
+
 
 print("total: %s sec" % (time.time() - start_time))
