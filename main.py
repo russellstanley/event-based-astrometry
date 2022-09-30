@@ -1,4 +1,3 @@
-from importlib.resources import path
 import sys
 import time
 import starfield
@@ -17,12 +16,12 @@ else:
 if (len(sys.argv) > 2):
     blank_path = sys.argv[2]
 
-    player = noise.find_hot_pixels(blank_path, "PRO")
+    player = noise.find_hot_pixels(blank_path)
     player.write_hot_pixels(95)
 
 start_time = time.time()
 
-player = starfield.csv_to_starfield(file_path, "PRO")
+player = starfield.csv_to_starfield(file_path)
 data = player.generate_star_field(30*starfield.ONE_SECOND, file_path[:len(file_path) - 4] + ".jpg", hot_pixels_path=noise.FILE_PATH)
 
 print("total: %s sec" % (time.time() - start_time))
