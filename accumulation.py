@@ -32,9 +32,10 @@ class simple_accumulation(reader.read_events):
         t = data['t']
         p = data['p']
 
-        fig = plt.figure()
+        fig = plt.figure(figsize=(10,10))
         ax = plt.axes(projection='3d')
         ax.scatter(t,x,y, c=p, cmap='rainbow', linewidth=0.5)
+        ax.view_init(elev=40, azim=10)
         plt.savefig('scatter3d.jpg', dpi=250)
         
 
@@ -63,3 +64,4 @@ class simple_accumulation(reader.read_events):
 
 
 art = simple_accumulation(path)
+art.scatter(1*ONE_SECOND, 1.1*ONE_SECOND)
