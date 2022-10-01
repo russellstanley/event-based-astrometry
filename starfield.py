@@ -20,16 +20,6 @@ class csv_to_starfield(reader.read_events):
     frame_width = DEFAULT_FRAME_WIDTH
     start_frame = None 
     end_frame= None
-    hot_pixels = {}
-
-    # load_noise will generate a map of hot pixel coordinates and their respective scale. 
-    def load_noise(self, path):
-        pixels = np.loadtxt(path, delimiter=",", dtype=int)
-        self.hot_pixels = {}
-
-        for (x, y, scale) in pixels:
-            key = self.generate_key(x,y)
-            self.hot_pixels.update({key:scale})
     
     # Get start and end event frames over a specified duration and accumulation time.
     def get_frames(self, frame_delay_us):
