@@ -2,7 +2,6 @@ import sys
 import time
 import starfield
 import noise
-import centroid
 import glob
 
 # DVX Format

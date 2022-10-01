@@ -11,18 +11,22 @@ from photutils.segmentation import detect_threshold
 from photutils.centroids import centroid_com
 from photutils.aperture import CircularAperture
 
+# Load event file path
+if (len(sys.argv) > 1):
+    file_path = sys.argv[1]
+else:
+    exit()
+
+
 FOCAL_LENGTH = 400 # millimeters
 
 class centroid:
     data = None
     positions = None
 
-    def __init__(self, file_path):
-        self.file_path = file_path
-
     def get_peaks(self):
         # Load data.
-        self.data = cv2.imread(self.file_path, cv2.IMREAD_GRAYSCALE)
+        self.data = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
         threshold = detect_threshold(self.data, nsigma=12.0)
 
         # Find centroid in starfield.
@@ -44,7 +48,7 @@ class centroid:
 
         plt.xlim(0, self.data.shape[1] - 1)
         plt.ylim(0, self.data.shape[0] - 1)
-        plt.savefig(self.file_path[0:len(self.file_path)-4] + "_boosted.jpg", dpi=500, bbox_inches="tight", pad_inches=0.0)
+        plt.savefig(file_path[0:len(file_path)-4] + "c.jpg", dpi=500, bbox_inches="tight", pad_inches=0.0)
 
     def get_body_vectors(self):
         cx, cy = self.data.shape
@@ -67,3 +71,7 @@ class centroid:
 
         print(result)
         return result
+
+player = centroid()
+player.get_peaks()
+player.draw(circles=False)
