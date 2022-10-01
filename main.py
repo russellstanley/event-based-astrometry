@@ -35,9 +35,5 @@ for file_path in files:
     player = starfield.csv_to_starfield(file_path)
     data = player.generate_star_field(30*starfield.ONE_SECOND, image_file, hot_pixels_path=noise.FILE_PATH)
 
-    centroiding = centroid.centroid(image_file)
-    centroiding.get_peaks()
-    centroiding.draw(circles=False)
-
 
 print("total: %s sec" % (time.time() - start_time))
