@@ -3,6 +3,8 @@ import numpy as np
 import reader
 import time
 
+from metavision_core.event_io import RawReader
+
 # DVX Format
 #t(Unix), x, y, p
 
@@ -18,34 +20,33 @@ class csv_to_starfield(reader.read_events):
     frame_width = DEFAULT_FRAME_WIDTH
     start_frame = None 
     end_frame= None
-    hot_pixels = {}
-
-    # load_noise will generate a map of hot pixel coordinates and their respective scale. 
-    def load_noise(self, path):
-        pixels = np.loadtxt(path, delimiter=",", dtype=int)
-        self.hot_pixels = {}
-
-        for (x, y, scale) in pixels:
-            key = self.generate_key(x,y)
-            self.hot_pixels.update({key:scale})
     
     # Get start and end event frames over a specified duration and accumulation time.
     def get_frames(self, frame_delay_us):
-        time_offset = self.events[0][2]
-        times_us = self.events[:,3]
+
+        # Create reader
+        record_raw = RawReader(self.path)
+
+        # Load first packet
+        packet = record_raw.load_delta_t(self.accumulation_time_us)
+        events = np.array([packet['x'], packet['y'], packet['p'], packet['t']])
+        events = np.transpose(events)
+        time_offset = events[0][3]
 
         # Get the start frame.
-        low_bound = time_offset
-        up_bound = time_offset + self.accumulation_time_us
-        mask = ((times_us > low_bound) & (times_us < up_bound))
-        self.start_frame = self.frame_generator(self.events[mask])
+        self.start_frame = self.frame_generator(events)
         self.start_ts = int(time_offset)
 
+        # Skip events according to frame delay 
+        record_raw.seek_time(frame_delay_us - self.accumulation_time_us + time_offset)
+
+        # Load second packet
+        packet = record_raw.load_delta_t(self.accumulation_time_us)
+        events = np.array([packet['x'], packet['y'], packet['p'], packet['t']])
+        events = np.transpose(events)
+
         # Get the end frame.
-        low_bound = frame_delay_us - self.accumulation_time_us + time_offset
-        up_bound = frame_delay_us + time_offset
-        mask = ((times_us > low_bound) & (times_us < up_bound))
-        self.end_frame = self.frame_generator(self.events[mask])
+        self.end_frame = self.frame_generator(events)
         self.end_ts = int(frame_delay_us + time_offset)
 
     # Output an event frame for the input events
@@ -66,7 +67,7 @@ class csv_to_starfield(reader.read_events):
     def get_velocity(self, duration_us):
         translation = np.eye(2,3,dtype=np.float32)
 
-        for delay in range(0, int(duration_us/ONE_SECOND)*5):
+        for delay in range(int(duration_us/ONE_SECOND)*1, int(duration_us/ONE_SECOND)*5):
             self.get_frames(delay*ONE_SECOND*0.1)
             
             # Blur images
@@ -92,9 +93,9 @@ class csv_to_starfield(reader.read_events):
         # Debugging
         # shape = self.start_frame.shape
         # end_aligned = cv2.warpAffine(start_blur, translation, (shape[1],shape[0]))
-        # cv2.imwrite("output/start_blur.jpg", start_blur)
-        # cv2.imwrite("output/end_blur.jpg", end_blur)
-        # cv2.imwrite("output/aligned.jpg", end_aligned)
+        # cv2.imwrite("start_blur.jpg", start_blur)
+        # cv2.imwrite("end_blur.jpg", end_blur)
+        # cv2.imwrite("aligned.jpg", end_aligned)
 
         v_x = translation[0,2]*(1/time_dif_us)
         v_y = translation[1,2]*(1/time_dif_us)
@@ -139,6 +140,7 @@ class csv_to_starfield(reader.read_events):
 
     # Generate a star-field using event data over a given duration.
     def generate_star_field(self, duration_us, name, hot_pixels_path=""):
+        record_raw = RawReader(self.path)
 
         # Generate noise map if a path is given
         if hot_pixels_path != "":
@@ -156,14 +158,15 @@ class csv_to_starfield(reader.read_events):
 
         start_time = time.time()
         # Read each 'ON' event and determine the sky coordinates.
-        for (x, y, p, t) in self.events:
-            if (p==1 and self.hot_pixels.get(self.generate_key(x,y)) == None):
-                x_coord = int(x - velocity[0]*t)
-                y_coord = int(y - velocity[1]*t)
-                image[y_coord, x_coord] = image[y_coord, x_coord] + 1 #TODO Determine best value to increase by
+        while not record_raw.is_done() and record_raw.current_time < duration_us:
+            # load the next 10 ms worth of events
+            packet = record_raw.load_delta_t(10000)
+            for (x, y, p, t) in packet:
+                if (p==1 and self.hot_pixels.get(self.generate_key(x,y)) == None):
+                    x_coord = int(x - velocity[0]*t)
+                    y_coord = int(y - velocity[1]*t)
+                    image[y_coord, x_coord] = image[y_coord, x_coord] + 1 #TODO Determine best value to increase by
 
-            if (t > duration_us):
-                break
         print("image_generation: %s sec" % (time.time() - start_time))
 
         cv2.imwrite(name, self.normalize(image))
