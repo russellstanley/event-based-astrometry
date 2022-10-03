@@ -27,10 +27,17 @@ class simple_accumulation(reader.read_events):
         record_raw.seek_time(start_us)
         data = record_raw.load_delta_t(end_us - start_us)
 
-        x = data['x']
-        y = data['y']
-        t = data['t']
-        p = data['p']
+        x = []
+        y = []
+        t = []
+        p = []
+
+        for (x_i,y_i,p_i,t_i) in data:
+            if (self.hot_pixels.get(self.generate_key(x_i,y_i)) == None):
+                x = x.append(x_i)
+                y = y.append(y_i)
+                t = t.append(t_i)
+                p = p.append(p_i)
 
         fig = plt.figure(figsize=(10,10))
         ax = plt.axes(projection='3d')
