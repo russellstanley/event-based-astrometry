@@ -13,8 +13,6 @@ class read_events():
 
         print("load time: %s sec" % (time.time() - start_time))
 
-    hot_pixels = {}
-
     # load_noise will generate a map of hot pixel coordinates and their respective scale. 
     def load_noise(self, path):
         pixels = np.loadtxt(path, delimiter=",", dtype=int)

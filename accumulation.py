@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import reader
 import time
+import noise
 
 from metavision_core.event_io import RawReader
 
@@ -27,22 +28,28 @@ class simple_accumulation(reader.read_events):
         record_raw.seek_time(start_us)
         data = record_raw.load_delta_t(end_us - start_us)
 
-        x = []
-        y = []
-        t = []
-        p = []
+        self.load_noise(noise.FILE_PATH)
 
-        for (x_i,y_i,p_i,t_i) in data:
-            if (self.hot_pixels.get(self.generate_key(x_i,y_i)) == None):
-                x = x.append(x_i)
-                y = y.append(y_i)
-                t = t.append(t_i)
-                p = p.append(p_i)
+        x = data['x']
+        y = data['y']
+        t = data['t']
+        p = data['p']
+
+        mask = np.ones(len(x), dtype=bool)
+
+        for i in range(len(data)):
+            x_i = x[i]
+            y_i = y[i]
+
+            if (self.hot_pixels.get(self.generate_key(x_i,y_i)) != None):
+                mask[i] = False
 
         fig = plt.figure(figsize=(10,10))
         ax = plt.axes(projection='3d')
-        ax.scatter(t,x,y, c=p, cmap='rainbow', linewidth=0.5)
-        ax.view_init(elev=40, azim=10)
+        ax.set_ylim((0,1280))
+        ax.set_zlim((0,720))
+        ax.scatter(t[mask],x[mask],y[mask], c=p[mask], cmap='rainbow', linewidth=0.5)
+        ax.view_init(elev=45, azim=45)
         plt.savefig('scatter3d.jpg', dpi=250)
         
 
@@ -71,4 +78,4 @@ class simple_accumulation(reader.read_events):
 
 
 art = simple_accumulation(path)
-art.scatter(1*ONE_SECOND, 1.1*ONE_SECOND)
+art.scatter(1*ONE_SECOND, 10*ONE_SECOND)
