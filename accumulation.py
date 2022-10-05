@@ -23,7 +23,7 @@ class simple_accumulation(reader.read_events):
     def __init__(self, path):
         self.path = path
 
-    def scatter(self, start_us, end_us):
+    def scatter(self, start_us, end_us, remove_noise=True):
         record_raw = RawReader(self.path)
         record_raw.seek_time(start_us)
         data = record_raw.load_delta_t(end_us - start_us)
@@ -36,20 +36,28 @@ class simple_accumulation(reader.read_events):
         p = data['p']
 
         mask = np.ones(len(x), dtype=bool)
+        if (remove_noise == True):
+            for i in range(len(data)):
+                x_i = x[i]
+                y_i = y[i]
 
-        for i in range(len(data)):
-            x_i = x[i]
-            y_i = y[i]
-
-            if (self.hot_pixels.get(self.generate_key(x_i,y_i)) != None):
-                mask[i] = False
+                if (self.hot_pixels.get(self.generate_key(x_i,y_i)) != None):
+                    mask[i] = False
 
         fig = plt.figure(figsize=(10,10))
         ax = plt.axes(projection='3d')
         ax.set_ylim((0,1280))
         ax.set_zlim((0,720))
-        ax.scatter(t[mask],x[mask],y[mask], c=p[mask], cmap='rainbow', linewidth=0.5)
-        ax.view_init(elev=45, azim=45)
+        ax.set_xlabel("time(us)")
+        ax.set_ylabel("x")
+        ax.set_zlabel("y")
+
+        scatter = ax.scatter(t[mask],x[mask],y[mask], c=p[mask], cmap='rainbow', linewidth=0.5)
+
+        legend = ax.legend(*scatter.legend_elements())
+        ax.add_artist(legend)
+
+        ax.view_init(elev=30, azim=45)
         plt.savefig('scatter3d.jpg', dpi=250)
         
 
@@ -78,4 +86,4 @@ class simple_accumulation(reader.read_events):
 
 
 art = simple_accumulation(path)
-art.scatter(1*ONE_SECOND, 10*ONE_SECOND)
+art.scatter(0.1*ONE_SECOND, 30*ONE_SECOND, True)
