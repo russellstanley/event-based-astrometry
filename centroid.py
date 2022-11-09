@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import sys
+import glob
 
 from astropy.visualization import simple_norm
 
@@ -13,7 +14,13 @@ from photutils.aperture import CircularAperture
 
 # Load event file path
 if (len(sys.argv) > 1):
-    file_path = sys.argv[1]
+    path = sys.argv[1]
+    if path.endswith(".jpg"):
+        # Single file
+        files = [path]
+    else:
+        # Add directory
+        files = glob.glob(path + "/*.jpg")
 else:
     exit()
 
@@ -23,14 +30,18 @@ FOCAL_LENGTH = 400 # millimeters
 class centroid:
     data = None
     positions = None
+    file_path = ""
+
+    def __init__(self, path):
+        self.file_path = path
 
     def get_peaks(self):
         # Load data.
-        self.data = cv2.imread(file_path, cv2.IMREAD_GRAYSCALE)
+        self.data = cv2.imread(self.file_path, cv2.IMREAD_GRAYSCALE)
         threshold = detect_threshold(self.data, nsigma=12.0)
 
         # Find centroid in starfield.
-        tbl = find_peaks(self.data, threshold, box_size=11, npeaks=50, centroid_func=centroid_com)
+        tbl = find_peaks(self.data, threshold, box_size=11, npeaks=20, centroid_func=centroid_com)
 
         self.positions = np.transpose((tbl['x_centroid'], tbl['y_centroid']))
 
@@ -48,7 +59,7 @@ class centroid:
 
         plt.xlim(0, self.data.shape[1] - 1)
         plt.ylim(0, self.data.shape[0] - 1)
-        plt.savefig(file_path[0:len(file_path)-4] + "c.jpg", dpi=500, bbox_inches="tight", pad_inches=0.0)
+        plt.savefig(self.file_path[0:len(self.file_path)-4] + "c.jpg", dpi=500, bbox_inches="tight", pad_inches=0.0)
 
     def get_body_vectors(self):
         cx, cy = self.data.shape
@@ -72,6 +83,8 @@ class centroid:
         print(result)
         return result
 
-player = centroid()
-player.get_peaks()
-player.draw(circles=False)
+for i in files:
+    player = centroid(i)
+    player.get_peaks()
+    # player.get_body_vectors()
+    player.draw(circles=False)
