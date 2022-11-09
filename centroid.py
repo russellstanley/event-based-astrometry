@@ -12,7 +12,7 @@ from photutils.segmentation import detect_threshold
 from photutils.centroids import centroid_com
 from photutils.aperture import CircularAperture
 
-# Load event file path
+# Load image file paths
 if (len(sys.argv) > 1):
     path = sys.argv[1]
     if path.endswith(".jpg"):
@@ -35,6 +35,7 @@ class centroid:
     def __init__(self, path):
         self.file_path = path
 
+    # Determine the location of the peaks in the image. 
     def get_peaks(self):
         # Load data.
         self.data = cv2.imread(self.file_path, cv2.IMREAD_GRAYSCALE)
@@ -45,7 +46,7 @@ class centroid:
 
         self.positions = np.transpose((tbl['x_centroid'], tbl['y_centroid']))
 
-
+    # Generate and save the amplifed image. Circle the peaks if boolean is true.
     def draw(self, circles=True):
         apertures = CircularAperture(self.positions, r=5.)
         norm = simple_norm(self.data, 'sqrt', percent=99.9)

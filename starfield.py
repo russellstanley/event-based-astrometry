@@ -95,29 +95,10 @@ class csv_to_starfield(reader.read_events):
         (cc, translation) = cv2.findTransformECC(start_blur, end_blur, translation, cv2.MOTION_TRANSLATION)
         print(translation[:, 2])
 
-        # Debugging
-        # shape = self.start_frame.shape
-        # end_aligned = cv2.warpAffine(start_blur, translation, (shape[1],shape[0]))
-        # cv2.imwrite("start_blur.jpg", start_blur)
-        # cv2.imwrite("end_blur.jpg", end_blur)
-        # cv2.imwrite("aligned.jpg", end_aligned)
-
         v_x = translation[0,2]*(1/time_dif_us)
         v_y = translation[1,2]*(1/time_dif_us)
 
         return [v_x,v_y]
-
-    def top_k_pixels(self, k, image):
-        max = np.max(image)
-
-        for i in range(len(image)):
-            for j in range(len(image[i])):
-                if image[i,j] < (max - k*max):
-                    image[i,j] = 0
-                else:
-                    image[i,j] = 1000
-
-        return image
 
     # Generate an initial guess for the transformation, This is done by finding the distance between the brightest pixels in each image.
     def intial_guess(self, image1, image2):

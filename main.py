@@ -4,10 +4,7 @@ import starfield
 import noise
 import glob
 
-# DVX Format
-#t(Unix), x, y, p
-
-# Load event file path
+# Load event file path.
 if (len(sys.argv) > 1):
     path = sys.argv[1]
     if path.endswith(".raw"):
@@ -19,7 +16,7 @@ if (len(sys.argv) > 1):
 else:
     exit()
 
-# Load blank event file path
+# Load blank event file path if given.
 if (len(sys.argv) > 2):
     blank_path = sys.argv[2]
 
