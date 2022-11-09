@@ -48,11 +48,11 @@ class simple_accumulation(reader.read_events):
         ax = plt.axes(projection='3d')
         ax.set_ylim((0,1280))
         ax.set_zlim((0,720))
-        ax.set_xlabel("time(us)")
-        ax.set_ylabel("x")
-        ax.set_zlabel("y")
+        ax.set_xlabel("time(sec)", fontsize=14)
+        ax.set_ylabel("x", fontsize=14)
+        ax.set_zlabel("y",fontsize=14)
 
-        scatter = ax.scatter(t[mask],x[mask],y[mask], c=p[mask], cmap='rainbow', linewidth=0.5)
+        scatter = ax.scatter((t[mask]/ONE_SECOND),x[mask],y[mask], c=p[mask], cmap='rainbow', linewidth=0.5)
 
         legend = ax.legend(*scatter.legend_elements())
         ax.add_artist(legend)
