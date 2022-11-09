@@ -37,6 +37,9 @@ class csv_to_starfield(reader.read_events):
         self.start_frame = self.frame_generator(events)
         self.start_ts = int(time_offset)
 
+        if (int(frame_delay_us) < self.accumulation_time_us*2):
+            return False
+
         # Skip events according to frame delay 
         record_raw.seek_time(frame_delay_us - self.accumulation_time_us + time_offset)
 
@@ -68,7 +71,9 @@ class csv_to_starfield(reader.read_events):
         translation = np.eye(2,3,dtype=np.float32)
 
         for delay in range(int(duration_us/ONE_SECOND)*1, int(duration_us/ONE_SECOND)*5):
-            self.get_frames(delay*ONE_SECOND*0.1)
+            if self.get_frames(delay*ONE_SECOND*0.1) == False:
+                print("Fail")
+                continue
             
             # Blur images
             start_blur = cv2.blur(self.start_frame, (9,9))
